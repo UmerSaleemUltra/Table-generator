@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Table Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 20px;
+        }
+        .container {
+            max-width: 900px;
+        }
+        .buttons, .inputs {
+            margin-top: 20px;
+        }
+        .buttons button, .inputs button {
+            margin-right: 10px;
+        }
+        table, th, td {
+            border: 1px solid black;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Advanced Table Generator</h1>
+        <div class="inputs row">
+            <div class="col-md-8 mb-3">
+                <input type="text" class="form-control" id="headerInput" placeholder="Enter column headers (comma separated)">
+            </div>
+            <div class="col-md-4 mb-3">
+                <button class="btn btn-primary w-100" onclick="createTable()">Create Table</button>
+            </div>
+        </div>
+        <div class="inputs row">
+            <div class="col-md-8 mb-3">
+                <input type="text" class="form-control" id="rowInput" placeholder="Enter row data (comma separated)">
+            </div>
+            <div class="col-md-4 mb-3 d-flex">
+                <button class="btn btn-success w-100 me-2" onclick="addRow()">Add Row</button>
+                <button class="btn btn-warning w-100" onclick="removeLastRow()">Remove Last Row</button>
+                <button class="btn btn-danger w-100" onclick="deleteAllRows()">Delete All Rows</button>
+            </div>
+        </div>
+        <div class="inputs row">
+            <div class="col-md-8 mb-3">
+                <input type="text" class="form-control" id="columnData" placeholder="Enter column data (comma separated)">
+            </div>
+            <div class="col-md-4 mb-3 d-flex">
+                <button class="btn btn-success w-100 me-2" onclick="addColumn()">Add Column</button>
+                <button class="btn btn-warning w-100" onclick="removeLastColumn()">Remove Last Column</button>
+                <button class="btn btn-danger w-100" onclick="deleteAllColumns()">Delete All Columns</button>
+            </div>
+        </div>
+        <table class="table table-striped" id="myTable">
+            <thead>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+        <div class="buttons text-center">
+            <button class="btn btn-info me-2" onclick="downloadPDF()">Download as PDF</button>
+            <button class="btn btn-info me-2" onclick="downloadCSV()">Download as CSV</button>
+            <button class="btn btn-info" onclick="downloadTXT()">Download as TXT</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.18/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            loadTable();
+        });
+
+        function saveTable() {
+            const table = document.getElementById('myTable').outerHTML;
+            localStorage.setItem('tableData', table);
+        }
+
+        function loadTable() {
+            const table = localStorage.getItem('tableData');
+            if (table) {
+                document.getElementById('myTable').outerHTML = table;
+            }
+        }
+
+        function createTable() {
+            const headers = document.getElementById('headerInput').value.split(',');
+            const tableHead = document.getElementById('myTable').querySelector('thead');
+            const tableBody = document.getElementById('myTable').querySelector('tbody');
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            const headerRow = document.createElement('tr');
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header.trim();
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+            saveTable();
+        }
+
+        function addRow() {
+            const rowData = document.getElementById('rowInput').value.split(',');
+            const tableBody = document.getElementById('myTable').querySelector('tbody');
+            const row = document.createElement('tr');
+
+            rowData.forEach(data => {
+                const td = document.createElement('td');
+                td.textContent = data.trim();
+                row.appendChild(td);
+            });
+
+            const numberOfColumns = document.getElementById('myTable').querySelector('thead').rows[0].cells.length;
+            while (row.cells.length < numberOfColumns) {
+                row.appendChild(document.createElement('td'));
+            }
+            tableBody.appendChild(row);
+            saveTable();
+        }
+
+        function removeLastRow() {
+            const tableBody = document.getElementById('myTable').querySelector('tbody');
+            if (tableBody.lastChild) {
+                tableBody.removeChild(tableBody.lastChild);
+            }
+            saveTable();
+        }
+
+        function deleteAllRows() {
+            const tableBody = document.getElementById('myTable').querySelector('tbody');
+            tableBody.innerHTML = '';
+            saveTable();
+        }
+
+        function addColumn() {
+            const columnData = document.getElementById('columnData').value.split(',');
+            const tableHead = document.getElementById('myTable').querySelector('thead');
+            const tableBody = document.getElementById('myTable').querySelector('tbody');
+
+            // Add header for the new column
+            const headerCell = document.createElement('th');
+            headerCell.textContent = columnData[0].trim();
+            tableHead.rows[0].appendChild(headerCell);
+
+            // Add data cells for the new column
+            let rowCount = tableBody.rows.length;
+            columnData.slice(1).forEach((data, index) => {
+                if (index < rowCount) {
+                    tableBody.rows[index].appendChild(document.createElement('td')).textContent = data.trim();
+                } else {
+                    const row = document.createElement('tr');
+                    for (let i = 0; i < tableHead.rows[0].cells.length; i++) {
+                        const cell = document.createElement('td');
+                        if (i === tableHead.rows[0].cells.length - 1) {
+                            cell.textContent = data.trim();
+                        }
+                        row.appendChild(cell);
+                    }
+                    tableBody.appendChild(row);
+                }
+            });
+
+            // Add empty cells for rows that didn't get new data
+            for (let i = columnData.length - 1; i < rowCount; i++) {
+                tableBody.rows[i].appendChild(document.createElement('td'));
+            }
+            saveTable();
+        }
+
+        function removeLastColumn() {
+            const table = document.getElementById('myTable');
+            if (table.rows.length === 0) return;
+
+            for (let i = 0; i < table.rows.length; i++) {
+                table.rows[i].deleteCell(-1);
+            }
+            saveTable();
+        }
+
+        function deleteAllColumns() {
+            const table = document.getElementById('myTable');
+            const tableHead = table.querySelector('thead');
+            const tableBody = table.querySelector('tbody');
+
+            if (table.rows.length === 0) return;
+
+            tableHead.innerHTML = '';
+            for (let i = 0; i < tableBody.rows.length; i++) {
+                tableBody.rows[i].innerHTML = '';
+            }
+            saveTable();
+        }
+
+        function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const table = document.getElementById('myTable');
+            
+            // Convert HTML table to PDF
+            doc.autoTable({ html: table });
+            doc.save('table.pdf');
+        }
+
+        function downloadCSV() {
+            const table = document.getElementById('myTable');
+            let csvContent = '';
+            for (let row of table.rows) {
+                let rowData = [];
+                for (let cell of row.cells) {
+                    rowData.push(cell.textContent);
+                }
+                csvContent += rowData.join(',') + '\n';
+            }
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            saveAs(blob, 'table.csv');
+        }
+
+        function downloadTXT() {
+            const table = document.getElementById('myTable');
+            let txtContent = '';
+            for (let row of table.rows) {
+                let rowData = [];
+                for (let cell of row.cells) {
+                    rowData.push(cell.textContent);
+                }
+                txtContent += rowData.join('\t') + '\n';
+            }
+            const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8;' });
+            saveAs(blob, 'table.txt');
+        }
+    </script>
+</body>
+</html>
